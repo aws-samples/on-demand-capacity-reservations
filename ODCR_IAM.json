@@ -15,6 +15,16 @@
                 "cloudwatch:DeleteAlarms"
             ],
             "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": ["sns:CreateTopic", "sns:ListTopics", "sns:SetTopicAttributes", "sns:DeleteTopic"],
+            "Resource": "*"
+        },
+        {
+              "Effect": "Allow",
+              "Action": ["sns:Publish", "sns:Subscribe"],
+              "Resource": "arn:aws:sns:*:*:ODCRAlarmNotificationTopic"
         }
     ]
 }

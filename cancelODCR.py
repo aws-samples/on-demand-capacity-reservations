@@ -35,7 +35,6 @@ if CapacityReservationId.split('-')[0] !='cr':
     print ("Note: CapacityReservationId starts with 'cr-'")
     sys.exit()
 
-
 #Find capacity reservation region
 def describeCapacityReservation():
     regions = odcr.describe_regions()
@@ -58,6 +57,10 @@ def describeCapacityReservation():
                 CapacityReservationId,
             ],
             )
+            #print (response['CapacityReservations'][0]['State'])
+            if response['CapacityReservations'][0]['State'] != 'active':
+                print ("The state of the Capacity reservation/{} is {}. To cancel Capacity Reservation, please ensure that the state of the Capacity Reservation is active".format(CapacityReservationId, response['CapacityReservations'][0]['State']))
+                sys.exit()
             #region = (response['CapacityReservations'][0]['CapacityReservationArn']).split(':')[3]
         except ParamValidationError as err:
             print ("Invalid Capacity Reservation ID")

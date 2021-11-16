@@ -39,12 +39,18 @@ print("Curent Date =", CurrentDate)
 #### Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited' '09/25/2021 14:30:00'
 
 
-if len(sys.argv) <= 4:
+if len(sys.argv) == 1:
+    print ("Command to run code to modify to unlimited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'unlimited'" )
+    print ("Note: CapacityReservationId starts with 'cr-'." )
+    print ("Command to run code to modify to limited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType EndDate. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited' '09/25/2021 14:30:00'" )
+    print ("Note: CapacityReservationId starts with 'cr-'. EndDate is in the standard UTC time")
+    sys.exit()
+elif len(sys.argv) <= 4:
     if sys.argv[3] == 'unlimited':
         EndDateType =sys.argv[3]
         CapacityReservationId = sys.argv[1]
         if CapacityReservationId.split('-')[0] !='cr':
-            print ("Command to run code to modify to unlimited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited'" )
+            print ("Command to run code to modify to unlimited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'unlimited'" )
             print ("Note: CapacityReservationId starts with 'cr-'." )
             sys.exit()
         InstanceCount = sys.argv[2]
@@ -53,14 +59,14 @@ if len(sys.argv) <= 4:
             IC =  int(InstanceCount)  
         except ValueError as err:
             print("Unable to parse InstanceCount as an integer")
-            print ("Command to run code to modify to unlimited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited'" )
+            print ("Command to run code to modify to unlimited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'unlimited'" )
             print ("Ensure the instance count is a number value")
             sys.exit(1)
 elif len(sys.argv) == 5:
     #Existing Capacity Reservation ID
     CapacityReservationId = sys.argv[1]
     if CapacityReservationId.split('-')[0] !='cr':
-        print ("Command to run code is - modifyODCR.py CapacityReservationId InstanceCount EndDateType EndDate. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited' '09/25/2021 14:30:00'" )
+        print ("Command to run code to modify to limited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType EndDate. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited' '09/25/2021 14:30:00'" )
         print ("Note: CapacityReservationId starts with 'cr-'. EndDate is in the standard UTC time")
         sys.exit()
     InstanceCount = sys.argv[2]
@@ -69,7 +75,7 @@ elif len(sys.argv) == 5:
         IC =  int(InstanceCount)  
     except ValueError as err:
         print("Unable to parse InstanceCount as an integer")
-        print ("Command to run code is - modifyODCR.py CapacityReservationId InstanceCount EndDateType EndDate. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited' '09/25/2021 14:30:00'" )
+        print ("Command to run code to modify to limited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType EndDate. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited' '09/25/2021 14:30:00'" )
         print ("Ensure the instance count is a number value")
         sys.exit(1)
     # Ensure EndDateType as 'limited'
@@ -87,7 +93,7 @@ elif len(sys.argv) == 5:
             print ("Note: EndDate is in the standard UTC time")
             sys.exit()
 else:
-    print ("Command to run code to modify to unlimited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited'" )
+    print ("Command to run code to modify to unlimited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'unlimited'" )
     print ("Ensure the instance count is a number value")
     print ("Command to run code to modify limited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType EndDate. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited' '09/25/2021 14:30:00'" )
     print ("Note: EndDate is in the standard UTC time")

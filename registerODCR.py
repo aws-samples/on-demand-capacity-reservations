@@ -7,10 +7,14 @@
 
 import boto3
 from botocore.config import Config
+from botocore.exceptions import ClientError
 import sys
-from datetime import datetime 
+#from datetime import datetime 
+import datetime
 import pandas as pd
 from tqdm import tqdm
+import pytz
+
 
 ## Usage Notes: 
 ### variables need from the users:
@@ -31,14 +35,19 @@ from tqdm import tqdm
 #### Ex: registerODCR.py 'unlimited'
 
 # datetime object containing current date and time
-now = datetime.now()
+now = datetime.datetime.now().astimezone(pytz.utc)
 # mm/dd/YY H:M:S
 CurrentDate = now.strftime("%m/%d/%Y %H:%M:%S")
 print("Curent Date =", CurrentDate)
 
 ## if EndDateType is 'unlimited, do not provide an EndDate if the EndDateType is unlimited.
 ## if EndDateType is 'limited', ensure to provide an EndDate. EndDate is in the standard UTC time
-if len(sys.argv) <= 2:
+if len(sys.argv) == 1:
+    print ("Command to run code for unlimited ODCR is - registerODCR.py EndDateType. Ex: registerODCR.py 'unlimited'.")
+    print ("Do not specify EndDate")
+    print ("Command to run code for limited ODCR is - registerODCR.py EndDateType EndDate. Ex: registerODCR.py 'limited' '09/25/2021 14:30:00'.")
+    sys.exit()
+elif len(sys.argv) <= 2:
     if sys.argv[1] == 'unlimited':
         EndDateType = sys.argv[1]
     else:
@@ -62,14 +71,62 @@ elif len(sys.argv) <= 3:
 else:
     print ("Command to run code for unlimited ODCR is - registerODCR.py EndDateType. Ex: registerODCR.py 'unlimited'.")
     print ("Do not specify EndDate")
-    print ("Command to run code for limited ODCR is - registerODCR.py EndDateType EndDate. Ex: registerODCR.py 'unlimited' '09/25/2021 14:30:00'.")
+    print ("Command to run code for limited ODCR is - registerODCR.py EndDateType EndDate. Ex: registerODCR.py 'limited' '09/25/2021 14:30:00'.")
     sys.exit()
+
+
+def listTopic(RegionName):
+    TopicArn= []
+    try:
+        sns = boto3.client('sns',region_name=RegionName)
+        response = sns.list_topics(
+        )
+        #print (response['Topics'])
+        for res in response['Topics']:
+            #print (res['TopicArn'])
+            TopicArn.append(res['TopicArn'])
+        while ('NextToken' in response):
+            response = sns.list_topics(
+            )
+            #print (response['Topics'])
+            for res in response['Topics']:
+                #print (res['TopicArn'])
+                TopicArn.append(res['TopicArn'])
+        return TopicArn  
+    except ClientError as err:
+        print (err)
+
+
+def createODCRAlarmTopic(RegionName):
+    sns = boto3.client('sns', region_name=RegionName)
+    try:
+        response = sns.create_topic(
+        Name='ODCRAlarmNotificationTopic',
+        Attributes={
+            'DisplayName': 'ODCRAlarm'
+        },
+        )
+        #print (response)
+        return response['TopicArn']
+    except ClientError as err:
+        print(err)
+
 
 # This method creates alarm for each reservation
 def createCWAlarm(CapacityReservationId,RegionName):
+    TopicArnList = listTopic(RegionName)
+    #print (TopicArnList)
+    TopicArn = createODCRAlarmTopic(RegionName)
+    #print ("TopicARN is ", TopicArn)
+    #print ("boolean value is ", TopicArn not in TopicArnList)
+    if TopicArn not in TopicArnList:
+        print ("Subscribe and confirm to the SNS Topic {} if not already".format(TopicArn))
     cw = boto3.client('cloudwatch', region_name=RegionName)
     response = cw.put_metric_alarm(
         AlarmName='ODCRAlarm-'+CapacityReservationId,
+        AlarmActions=[
+        TopicArn,
+        ],
         MetricName='InstanceUtilization',
         Namespace='AWS/EC2CapacityReservations',
         Statistic='Average',
@@ -85,6 +142,17 @@ def createCWAlarm(CapacityReservationId,RegionName):
         Threshold=50,
         ComparisonOperator='LessThanThreshold',
     )
+    return response
+
+# this method helps to identify platform associated with the instance/image
+def describeImage(ImageId, client):
+    response = client.describe_images(ImageIds=[ImageId])
+    #print ("The output from the Image = ", response)
+    Platform = ''.join([a_dict['PlatformDetails'] for a_dict in response['Images']])
+    #print (Platform)
+    #print (type(Platform))
+    return Platform
+    
 
 # Global list variable to keep track of the CRI, InstanceType, AZ, Platform and count
 ODCRReservation = []
@@ -95,18 +163,29 @@ ODCRReservation = []
 # Platform is either Windows or UNIX/LINUX, InstanceLifecycle is None and Tenancy is default.
 def describeInstances(client):
     availableInstanceList = []
-    filterlist = [{'Name': 'instance-state-name','Values': ['running']}]
+    filterlist = [{'Name': 'instance-state-name','Values': ['running']},{'Name': 'tenancy','Values': ['default']}]
     # setting MaxResults to 500, if throttled, please set is lower values.
-    instances = client.describe_instances(Filters=filterlist, MaxResults=500)
+    instances = client.describe_instances(Filters=filterlist, MaxResults=5)
     for reservations in instances['Reservations']:
         for instance in reservations['Instances']:
+            #print ("Instance is ",instance)
             InstanceLifecycle = instance.get('InstanceLifecycle')
             CapacityReservationId = instance.get('CapacityReservationId')
-            Platform = instance.get('Platform')
             Tenancy = instance['Placement'].get('Tenancy')
-            if Platform is None:
-                Platform = 'Linux/UNIX'
+            #if (instance['State']['Name'] == 'running' and InstanceLifecycle is None and CapacityReservationId is None and Tenancy == 'default' ):
+            #print ("Instance State = ", instance['State']['Name'])
+            #print ("Instance LifeCycle = ", InstanceLifecycle)
+            #print ("Capacity Reservation ID = ", CapacityReservationId)
+            #print ("Tenancy  = ", Tenancy)
             if (instance['State']['Name'] == 'running' and InstanceLifecycle is None and CapacityReservationId is None and Tenancy == 'default' ):
+                InstanceId = instance['InstanceId']
+                #print ("Instance ID is ", InstanceId)
+                ImageId =instance['ImageId'] 
+                #print ("Image Id is ", ImageId)
+                Platform = describeImage(ImageId, client)
+                if Platform is None or Platform =='':
+                        print ("No Platform is set for the ImageId {}, instanceId {}".format(ImageId,InstanceId))
+                #print ("Pltaform is ", Platform)
                 InstanceType = instance['InstanceType']
                 AvailabilityZone = instance['Placement']['AvailabilityZone']
                 availableInstance = (InstanceType +"|" +AvailabilityZone+"|" +Platform) 
@@ -116,12 +195,22 @@ def describeInstances(client):
         instances = client.describe_instances(Filters=filterlist, MaxResults=500, NextToken=instances['NextToken'])
         for reservations in instances['Reservations']:
             for instance in reservations['Instances']:
+                #print ("Instance in while loop ",instance)
                 InstanceLifecycle = instance.get('InstanceLifecycle')
                 CapacityReservationId = instance.get('CapacityReservationId')
-                Platform = instance.get('Platform')
-                if Platform is None:
-                    Platform = 'Linux/UNIX'
+                Tenancy = instance['Placement'].get('Tenancy')
+                #print ("Instance State = ", instance['State']['Name'])
+                #print ("Instance LifeCycle = ", InstanceLifecycle)
+                #print ("Capacity Reservation ID = ", CapacityReservationId)
+                #print ("Tenancy  = ", Tenancy)
                 if (instance['State']['Name'] == 'running' and InstanceLifecycle is None and CapacityReservationId is None ):
+                    InstanceId = instance['InstanceId']
+                    #print ("Instance ID is ", InstanceId)
+                    ImageId =instance['ImageId'] 
+                    Platform = describeImage(ImageId, client)
+                    #print ("Pltaform is ", Platform)
+                    if Platform is None or Platform =='':
+                        print ("No Platform is set for the ImageId {}, instanceId {}".format(ImageId,InstanceId))
                     InstanceType = instance['InstanceType']
                     AvailabilityZone = instance['Placement']['AvailabilityZone'] 
                     availableInstance = (InstanceType +"|" +AvailabilityZone+"|"+Platform) 
@@ -132,25 +221,13 @@ def describeInstances(client):
 #Count = counts instance with similar characteristics like Instance Types, AZ, and Platform
 def aggregateInstance(client):
     aggregateInstanceList = []
-    availInsList=[]
     availInsList = describeInstances(client)
-    temp_list = []
-    for ind in availInsList:
-        index = availInsList.index(ind)
-        temp_list = availInsList[index+1:]
-        #count to add instances with similar characteristics
-        count = 1
-        #xcount to keep track of index to delete elements from the availInsList if elements matches with temp_list.
-        xcount = 0
-        for x in temp_list:
-            if ind != x:
-                xcount = xcount+1
-            else: 
-                count = count+1
-                del availInsList[xcount]
-        aggInstance = ind + "|" + str(count)
-        aggregateInstanceList.append(aggInstance)  
-    return aggregateInstanceList
+    my_dict = {i:availInsList.count(i) for i in availInsList}
+    #print (my_dict)
+    for key,value in my_dict.items():
+        aggregateInstanceList.append(key+"|"+str(value))
+    return (aggregateInstanceList)
+
 
 # odcrReservation() method creates On-demand Capacity reservations with the supplied EndDateType and EndDate 
 def odcrReservation(client,RegionName):
@@ -159,37 +236,49 @@ def odcrReservation(client,RegionName):
     for ls in OdcrList:
         #split a record to parse InstanceType, AZ, Platform, and Count
         InstanceType, AZ, Platform, Count = ls.split('|')
-        #State = ''
+        #print ("Platform under ODCR ", Platform)
+        # support platforms as of 11/15/2021 
+        # ['Linux/UNIX'',Red Hat Enterprise Linux','SUSE Linux','Windows','Windows with SQL Server','Windows with SQL Server Enterprise','Windows with SQL Server Standard','Windows with SQL Server Web','Linux with SQL Server Standard','Linux with SQL Server Web','Linux with SQL Server Enterprise']:
         # If you plan to test it out then set DryRun=True
-        if EndDateType == 'limited':
-            OdcrReservation = client.create_capacity_reservation(
-                InstanceType=InstanceType,
-                InstancePlatform=Platform,
-                AvailabilityZone=AZ,
-                InstanceCount=int(Count),
-                EndDate = EndDate,
-                EndDateType = EndDateType,
-                DryRun=False)
-        else:
-            OdcrReservation = client.create_capacity_reservation(
-                InstanceType=InstanceType,
-                InstancePlatform=Platform,
-                AvailabilityZone=AZ,
-                InstanceCount=int(Count),
-                EndDateType = EndDateType,
-                DryRun=False)
-        #print (OdcrReservation)
-        # Output can be added to XLS sheet if needed for future reference.
-        CapacityReservationId = OdcrReservation['CapacityReservation']['CapacityReservationId']
-        createCWAlarm(CapacityReservationId,RegionName)
-        State =  OdcrReservation['CapacityReservation']['State']  
-        #print ("state is ", State) 
-        ODCRReservation.append(InstanceType)
-        ODCRReservation.append(Platform)
-        ODCRReservation.append(AZ)
-        ODCRReservation.append(Count)
-        ODCRReservation.append(CapacityReservationId)
-        ODCRReservation.append(State) 
+        try:
+            if EndDateType == 'limited':
+                OdcrReservation = client.create_capacity_reservation(
+                    InstanceType=InstanceType,
+                    InstancePlatform=Platform,
+                    AvailabilityZone=AZ,
+                    InstanceCount=int(Count),
+                    EndDate = EndDate,
+                    EndDateType = EndDateType,
+                    DryRun=False)
+            else:
+                OdcrReservation = client.create_capacity_reservation(
+                    InstanceType=InstanceType,
+                    InstancePlatform=Platform,
+                    AvailabilityZone=AZ,
+                    InstanceCount=int(Count),
+                    EndDateType = EndDateType,
+                    DryRun=False)
+            #print (OdcrReservation)
+            # Output can be added to XLS sheet if needed for future reference.
+            CapacityReservationId = OdcrReservation['CapacityReservation']['CapacityReservationId']
+            createCWAlarm(CapacityReservationId,RegionName)
+            State =  OdcrReservation['CapacityReservation']['State']  
+            ODCRReservation.append(InstanceType)
+            ODCRReservation.append(Platform)
+            ODCRReservation.append(AZ)
+            ODCRReservation.append(Count)
+            ODCRReservation.append(CapacityReservationId)
+            ODCRReservation.append(State) 
+        except ClientError as err:
+            # Catching an exception where platform is not support with ODCR
+            #print ("Error is ",err.response['Error']['Code'])
+            if err.response['Error']['Code'] == 'InvalidParameterValue': 
+                print("{} platform is not support under ODCR".format(Platform))
+            elif err.response['Error']['Code'] == 'MissingParameter': 
+                print("Platform information is not available. It might be private or inactive or not available anymore. Please check it out")
+            else:
+                print("Some of the parameters to create Capacity Reservation are not valid.")
+
 
 # Creating XLS sheet of the Capacity reservation detail. The file name is "ODCR.xlsx"
 def createXls(list):
@@ -212,7 +301,7 @@ def main():
     regions = client1.describe_regions()
     for region in tqdm(regions['Regions']):
         RegionName = region['RegionName']
-        #print ("Analyzing Region ", RegionName)
+        print ("Analyzing Region ", RegionName)
         my_config = Config(
             region_name = RegionName,
             signature_version = 'v4',
@@ -227,5 +316,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

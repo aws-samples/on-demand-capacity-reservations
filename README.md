@@ -24,17 +24,31 @@ Save the requirements.txt file in the same directory with other python scripts. 
 
 registerODCR.py script does 3 things –
 
-1. Describe instances cross-region for an account describeInstances() returns list of instances. Parse and pull – InstanceType|AvailabilityZone|Platform. It checks for instances that do not have 
-    * Capacity reservation 
+1. Describe instances cross-region for an account describeInstances() returns list of instances. Parse and pull – InstanceType|AvailabilityZone|Platform. It checks for instances that have 
+    * No Capacity reservation 
     * State of the instance is running 
     * Platform is UNIX/LINUX
     * Tenancy is default and 
     * InstanceLifecycle is None 
     
-    *Note: Describe Instances can lead to throttling your account, so run it during non-peak hours.*
+    *Note: Describe Instances can/may lead to throttling in your account, so run it during non-peak hours.*
 
 2. Aggregates instances with similar characteristics - InstanceType|AvailabilityZone|Platform|Count.
-3. Finally, reserves on-demand capacity reservation and creates Cloudwatch alarm for InstanceUtilization using the best practices at https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-reservation-cw-metrics.html
+3. Finally, 
+    a. reserves on-demand capacity reservation 
+    b. creates an SNS topic with the topic name - ODCRAlarmNotificationTopic in the region where you are registering ODCR, if not already exists.
+    c. creates Cloudwatch alarm for InstanceUtilization using the best practices at https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-reservation-cw-metrics.html
+    
+    **Note**: You need to subcribe and confirm to the SNS topic, if not already. The code will display the messsage below - 
+    
+    **Subscribe and confirm to the SNS Topic arn:aws:sns:us-west-2:895432111111:ODCRAlarmNotificationTopic if not already.**
+    
+    You will receive an email notifcation when Cloudwatch Alarm State changes with:
+    SNS Subject (Assuming CW alarms triggers in US East region) - 
+        ALARM: "ODCRAlarm-cr-009969c7abf4daxxx" in US East (N. Virginia)
+    SNS Body will have the details 
+        - CW Alarm, region, link to view the alarm, alarm details, and State Change Actions
+
 
 **To run script to register ODCRs**
 * If EndDateType is **unlimited**. Do not provide EndDate.
