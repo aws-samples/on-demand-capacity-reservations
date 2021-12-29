@@ -33,8 +33,9 @@ registerODCR.py script does 3 things –
     
     *Note: Describe Instances can/may lead to throttling in your account, so run it during non-peak hours.*
 
-2. Aggregates instances with similar characteristics - InstanceType|AvailabilityZone|Platform|Count.
-3. Finally, 
+2. Aggregates instances with similar characteristics - InstanceType|AvailabilityZone|Platform|Count. 
+**Note**: If you have one or more Zonal Reservation Instances (ZRIs) in an account, the script compares them with the existing instances with similar characteristics - Instance Type, AZ and Platform and don't create ODCR for the ZRIs to avoid incurring unwanted charges. But if there are more running instances than ZRIs, the script creates an ODCR for just the delta.  
+4. Finally, 
     a. reserves on-demand capacity reservation 
     b. creates an SNS topic with the topic name - ODCRAlarmNotificationTopic in the region where you are registering ODCR, if not already exists.
     c. creates Cloudwatch alarm for InstanceUtilization using the best practices at https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-reservation-cw-metrics.html
