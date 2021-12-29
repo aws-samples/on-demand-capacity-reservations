@@ -47,13 +47,13 @@ if len(sys.argv) == 1:
     print ("Do not specify EndDate")
     print ("Command to run code for limited ODCR is - registerODCR.py EndDateType EndDate. Ex: registerODCR.py 'limited' '09/25/2021 14:30:00'.")
     sys.exit()
-elif len(sys.argv) <= 2:
+elif len(sys.argv) == 2:
     if sys.argv[1] == 'unlimited':
         EndDateType = sys.argv[1]
     else:
         print ("Command to run code is - registerODCR.py EndDateType. Ex: registerODCR.py 'unlimited'.")
         sys.exit()
-elif len(sys.argv) <= 3:
+elif len(sys.argv) == 3:
     EndDateType = sys.argv[1]
     # End Date for the On-Demand Capacity Reservation
     EndDate = sys.argv[2]
@@ -79,24 +79,20 @@ def listTopic(RegionName):
     TopicArn= []
     try:
         sns = boto3.client('sns',region_name=RegionName)
-        response = sns.list_topics(
-        )
-        #print (response['Topics'])
-        for res in response['Topics']:
-            #print (res['TopicArn'])
-            TopicArn.append(res['TopicArn'])
-        while ('NextToken' in response):
-            response = sns.list_topics(
-            )
-            #print (response['Topics'])
+        while True:
+            response = sns.list_topics()
+            NextToken = response.get('NextToken')
+            if NextToken is None:
+                NextToken = '' 
             for res in response['Topics']:
-                #print (res['TopicArn'])
                 TopicArn.append(res['TopicArn'])
+            if NextToken == '':
+                break
         return TopicArn  
     except ClientError as err:
         print (err)
 
-
+#This method creates SNS topic
 def createODCRAlarmTopic(RegionName):
     sns = boto3.client('sns', region_name=RegionName)
     try:
@@ -152,71 +148,83 @@ def describeImage(ImageId, client):
     #print (Platform)
     #print (type(Platform))
     return Platform
-    
+
+# This method retruns Zonal reserve instance (ZRI) if exists or return null.
+# filter list has - Scope --> "Availability Zone" and
+# state of the Zonal RI as active.
+
+def describeReserveInstances(client):
+    zriList = []
+    filterList = [{'Name': 'scope','Values': ['Availability Zone']},{'Name': 'state','Values': ['active']}]
+
+    reserveInstances = client.describe_reserved_instances(
+    Filters=filterList
+    )
+    #print ("Reserve Instances are ", reserveInstances['ReservedInstances'])
+    if reserveInstances['ReservedInstances'] == []:
+        #print ('if')
+        zriList.extend(reserveInstances['ReservedInstances'])
+    else:
+        #print ("Reserve Instances in else are ", reserveInstances['ReservedInstances'])
+        for zri in reserveInstances['ReservedInstances']:
+            #print ('else',zri)
+            #print ('zri[InstanceType]', zri['InstanceType'])
+            #print ('zri[AvailabilityZone]', zri['AvailabilityZone'])
+            #print ('zri[ProductDescription]', zri['ProductDescription'])
+            #print ('zri[InstanceCount]', zri['InstanceCount'])
+            zaz = zri['InstanceType']+"|"+zri['AvailabilityZone']+"|"+zri['ProductDescription']+"|"+str(zri['InstanceCount'])
+            zriList.append(zaz)
+    #print ("zriList is ", zriList)
+    return zriList 
 
 # Global list variable to keep track of the CRI, InstanceType, AZ, Platform and count
 ODCRReservation = []
-#Describe_instances in the list -  availableInstanceList 
+#Next two methods get records describe_instances across regions in an account 
 # Describe Instances can lead to throttling your account, so run it during non-peak hours.
 # describeInstances() returns list of instances. Parse and pull -  InstanceType +"|" +AvailabilityZone+"|"+Platform
 # Checks - instance does not have Capacity reservation, state of the instance is running, 
 # Platform is either Windows or UNIX/LINUX, InstanceLifecycle is None and Tenancy is default.
-def describeInstances(client):
+#The entire describe instances -> create ODCR flow is duplicated in the pagination logic. Maybe we can construct a helper that consumes a nextToken, and simply make that null on the first call?
+def instanceNextToken(NextToken,client):
     availableInstanceList = []
     filterlist = [{'Name': 'instance-state-name','Values': ['running']},{'Name': 'tenancy','Values': ['default']}]
     # setting MaxResults to 500, if throttled, please set is lower values.
-    instances = client.describe_instances(Filters=filterlist, MaxResults=5)
+    instances = client.describe_instances(Filters=filterlist, MaxResults=100, NextToken=NextToken)
+    NextToken = instances.get('NextToken')
+    if NextToken is None:
+        NextToken = '' 
     for reservations in instances['Reservations']:
         for instance in reservations['Instances']:
             #print ("Instance is ",instance)
             InstanceLifecycle = instance.get('InstanceLifecycle')
             CapacityReservationId = instance.get('CapacityReservationId')
             Tenancy = instance['Placement'].get('Tenancy')
-            #if (instance['State']['Name'] == 'running' and InstanceLifecycle is None and CapacityReservationId is None and Tenancy == 'default' ):
-            #print ("Instance State = ", instance['State']['Name'])
-            #print ("Instance LifeCycle = ", InstanceLifecycle)
-            #print ("Capacity Reservation ID = ", CapacityReservationId)
-            #print ("Tenancy  = ", Tenancy)
-            if (instance['State']['Name'] == 'running' and InstanceLifecycle is None and CapacityReservationId is None and Tenancy == 'default' ):
+            CapacityReservationSpecification = len(instance['CapacityReservationSpecification'])
+            if (instance['State']['Name'] == 'running' and InstanceLifecycle is None and CapacityReservationId is None and CapacityReservationSpecification != 0 and Tenancy == 'default' ):
                 InstanceId = instance['InstanceId']
-                #print ("Instance ID is ", InstanceId)
                 ImageId =instance['ImageId'] 
-                #print ("Image Id is ", ImageId)
                 Platform = describeImage(ImageId, client)
                 if Platform is None or Platform =='':
                         print ("No Platform is set for the ImageId {}, instanceId {}".format(ImageId,InstanceId))
-                #print ("Pltaform is ", Platform)
                 InstanceType = instance['InstanceType']
                 AvailabilityZone = instance['Placement']['AvailabilityZone']
                 availableInstance = (InstanceType +"|" +AvailabilityZone+"|" +Platform) 
-                availableInstanceList.append(availableInstance)
-    while('NextToken' in instances): 
-        # setting MaxResults to 500, if throttled, please set is lower values.
-        instances = client.describe_instances(Filters=filterlist, MaxResults=500, NextToken=instances['NextToken'])
-        for reservations in instances['Reservations']:
-            for instance in reservations['Instances']:
-                #print ("Instance in while loop ",instance)
-                InstanceLifecycle = instance.get('InstanceLifecycle')
-                CapacityReservationId = instance.get('CapacityReservationId')
-                Tenancy = instance['Placement'].get('Tenancy')
-                #print ("Instance State = ", instance['State']['Name'])
-                #print ("Instance LifeCycle = ", InstanceLifecycle)
-                #print ("Capacity Reservation ID = ", CapacityReservationId)
-                #print ("Tenancy  = ", Tenancy)
-                if (instance['State']['Name'] == 'running' and InstanceLifecycle is None and CapacityReservationId is None ):
-                    InstanceId = instance['InstanceId']
-                    #print ("Instance ID is ", InstanceId)
-                    ImageId =instance['ImageId'] 
-                    Platform = describeImage(ImageId, client)
-                    #print ("Pltaform is ", Platform)
-                    if Platform is None or Platform =='':
-                        print ("No Platform is set for the ImageId {}, instanceId {}".format(ImageId,InstanceId))
-                    InstanceType = instance['InstanceType']
-                    AvailabilityZone = instance['Placement']['AvailabilityZone'] 
-                    availableInstance = (InstanceType +"|" +AvailabilityZone+"|"+Platform) 
-                    availableInstanceList.append(availableInstance)
-    return availableInstanceList
-             
+                availableInstanceList.append(availableInstance)      
+    return NextToken,availableInstanceList
+
+
+def describeInstances(client):
+    avail = []
+    NextToken = ''
+    while True:
+        NextToken,availableInstanceList = instanceNextToken(NextToken,client)
+        if availableInstanceList != []:
+            avail.extend(availableInstanceList)
+        if NextToken == '':
+            break
+    return avail
+
+
 # This method returns aggregated list of instances with similar characteristics -  InstanceType +"|" +AvailabilityZone+"|"+Platform+"|"+Count
 #Count = counts instance with similar characteristics like Instance Types, AZ, and Platform
 def aggregateInstance(client):
@@ -228,18 +236,54 @@ def aggregateInstance(client):
         aggregateInstanceList.append(key+"|"+str(value))
     return (aggregateInstanceList)
 
+# This method  check to see if any zonal instance with the appropriate AZ and platform matches with the aggregated ODCR
+# if it finds the match it substracts zonal instance count from the aggregated ODCR and create new list
+
+def odcrReservationWithZRI(ZonalRIList,OdcrList):
+    newZonalRIDict = {}
+    newOdcrDict = {}
+    newOdcrList = []
+
+    for zl in ZonalRIList:
+        s = zl.split("|")
+        hdr = "|".join(s[:3])
+        ctn = int(s[3])
+        if hdr in newZonalRIDict.keys():
+            newZonalRIDict[hdr] += ctn
+        else:
+            newZonalRIDict[hdr] = ctn
+
+    for ol in OdcrList:
+        s = ol.split("|")
+        hdr = "|".join(s[:3])
+        ctn = int(s[3])
+        if hdr in newOdcrDict.keys():
+            newOdcrDict[hdr] += ctn
+        else:
+            newOdcrDict[hdr] = ctn
+
+    for z, val in newZonalRIDict.items():
+        if z in newOdcrDict.keys():
+            diff = newOdcrDict.get(z) - val
+            newOdcrDict.pop(z)
+            newOdcrList.append(z + "|" + str(diff))
+
+    if len(newOdcrDict) > 0:
+        for key, val in newOdcrDict.items():
+            newOdcrList.append(key + "|" + str(val))
+    #print(newOdcrList)
+    return newOdcrList
+
 
 # odcrReservation() method creates On-demand Capacity reservations with the supplied EndDateType and EndDate 
-def odcrReservation(client,RegionName):
-    OdcrList=[]
+def odcrReservation(client,RegionName):  
+    #OdcrList=[]
     OdcrList=aggregateInstance(client)
-    for ls in OdcrList:
+    zonalRIList = describeReserveInstances(client)
+    OdcrWithZonalList = odcrReservationWithZRI(zonalRIList,OdcrList)
+    for ls in OdcrWithZonalList:
         #split a record to parse InstanceType, AZ, Platform, and Count
         InstanceType, AZ, Platform, Count = ls.split('|')
-        #print ("Platform under ODCR ", Platform)
-        # support platforms as of 11/15/2021 
-        # ['Linux/UNIX'',Red Hat Enterprise Linux','SUSE Linux','Windows','Windows with SQL Server','Windows with SQL Server Enterprise','Windows with SQL Server Standard','Windows with SQL Server Web','Linux with SQL Server Standard','Linux with SQL Server Web','Linux with SQL Server Enterprise']:
-        # If you plan to test it out then set DryRun=True
         try:
             if EndDateType == 'limited':
                 OdcrReservation = client.create_capacity_reservation(
