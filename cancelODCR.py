@@ -16,17 +16,11 @@ from tqdm import tqdm
 #### cancelODCR.py CapacityReservationId 
 #### Ex: cancelODCR.py 'cr-05e6a94b99915xxxx'
 
-odcr = boto3.client('ec2')
-
-
 # Exit program if provided parameters are less than or more than two parameters
 if len(sys.argv) != 2:
     print ("Command to run code is here- cancelODCR.py CapacityReservationId Ex: cancelODCR.py 'cr-05e6a94b99915xxxx'" )
     sys.exit()
-# Exit program if provided parameters are less than or more than two parameters
-if len(sys.argv) < 2:
-    print ("Command to run code is here- cancelODCR.py CapacityReservationId Ex: cancelODCR.py 'cr-05e6a94b99915xxxx'" )
-    sys.exit()    
+# Exit program if provided parameters are less than or more than two parameters   
 #Existing Capacity Reservation ID
 CapacityReservationId = sys.argv[1]
 print ("CapacityReservationId=", CapacityReservationId.lstrip())
@@ -35,13 +29,13 @@ if CapacityReservationId.split('-')[0] !='cr':
     print ("Note: CapacityReservationId starts with 'cr-'")
     sys.exit()
 
+
 #Find capacity reservation region
-def describeCapacityReservation():
+def describeCapacityReservationRegion():
+    odcr = boto3.client('ec2')
     regions = odcr.describe_regions()
     for region in tqdm(regions['Regions']):
         RegionName = region['RegionName']
-        #print (RegionName)
-        #print ("Analyzing Region ", RegionName)
         my_config = Config(
             region_name = RegionName,
             signature_version = 'v4',
@@ -57,28 +51,23 @@ def describeCapacityReservation():
                 CapacityReservationId,
             ],
             )
-            #print (response['CapacityReservations'][0]['State'])
             if response['CapacityReservations'][0]['State'] != 'active':
                 print ("The state of the Capacity reservation/{} is {}. To cancel Capacity Reservation, please ensure that the state of the Capacity Reservation is active".format(CapacityReservationId, response['CapacityReservations'][0]['State']))
                 sys.exit()
-            #region = (response['CapacityReservations'][0]['CapacityReservationArn']).split(':')[3]
         except ParamValidationError as err:
             print ("Invalid Capacity Reservation ID")
             sys.exit()
         except ClientError as err:
-            #if (err.response['Error']['Code'] == 'UnboundLocalError'):
-                #print ("Invalid Capacity Reservation ID")
-                #sys.exit()
             if (err.response['Error']['Code'] == 'InvalidCapacityReservationId.NotFound'):
                 pass
             else:
                 print ("Command to run code is- cancelODCR.py CapacityReservationId Ex: cancelODCR.py 'cr-05e6a94b99915xxxx'" )
                 print ("Note: Ensure Capacity reservation ID is valid and has an accurate format. CapacityReservationId starts with 'cr-'")
                 sys.exit()
-                #print ("The Provided Capacity Reservation does not belong to ",RegionName)
     region = (response['CapacityReservations'][0]['CapacityReservationArn']).split(':')[3]
     return region        
-#print (CapacityReservationId)
+
+
 # Delete alarm for the capacity reservation
 def deleteCWAlarm(region):
     try:
@@ -97,7 +86,6 @@ def deleteCWAlarm(region):
 
 # This method will allow to cancel exiting ODCR. 
 # CapacityReservationID -- The ID of the Capacity Reservation that you want to cancel
-
 def cancelODCR(region):
     cancel = boto3.client('ec2',region_name=region)
     try:
@@ -107,13 +95,11 @@ def cancelODCR(region):
         )
     except ClientError as err:
         print (err.response['Error']['Code'])
-    #print ("CancelODCR for ", CancelODCR)
     return CancelODCR['Return']
 
+
 def main():
-    #print ("test ", cancelODCR())
-    #describeCapacityReservation()
-    region = describeCapacityReservation()
+    region = describeCapacityReservationRegion()
     if cancelODCR(region):
         deleteCWAlarm(region)
         print ("Capacity reservation cancellation request succeeded, and the associated alarm was deleted from the Cloudwatch")
