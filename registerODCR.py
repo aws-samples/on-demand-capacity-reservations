@@ -30,7 +30,7 @@ import pytz
 
 #### To execute the code
 ### if EndDataType is limited then registerODCR.py EndDateType EndDate. Note: EndDate is in the standard UTC time
-#### Ex: registerODCR.py 'limited' '09/25/2021 14:30:00'
+#### Ex: registerODCR.py 'limited' '01/11/2022 14:30:00'
 #### if EndDataType is unlimited then registerODCR.py EndDateType.
 #### Ex: registerODCR.py 'unlimited'
 
@@ -45,7 +45,7 @@ print("Curent Date =", CurrentDate)
 if len(sys.argv) == 1:
     print ("Command to run code for unlimited ODCR is - registerODCR.py EndDateType. Ex: registerODCR.py 'unlimited'.")
     print ("Do not specify EndDate")
-    print ("Command to run code for limited ODCR is - registerODCR.py EndDateType EndDate. Ex: registerODCR.py 'limited' '09/25/2021 14:30:00'.")
+    print ("Command to run code for limited ODCR is - registerODCR.py EndDateType EndDate. Ex: registerODCR.py 'limited' '01/11/2022 14:30:00'.")
     sys.exit()
 elif len(sys.argv) == 2:
     if sys.argv[1] == 'unlimited':
@@ -71,7 +71,7 @@ elif len(sys.argv) == 3:
 else:
     print ("Command to run code for unlimited ODCR is - registerODCR.py EndDateType. Ex: registerODCR.py 'unlimited'.")
     print ("Do not specify EndDate")
-    print ("Command to run code for limited ODCR is - registerODCR.py EndDateType EndDate. Ex: registerODCR.py 'limited' '09/25/2021 14:30:00'.")
+    print ("Command to run code for limited ODCR is - registerODCR.py EndDateType EndDate. Ex: registerODCR.py 'limited' '01/11/2022 14:30:00'.")
     sys.exit()
 
 
@@ -102,7 +102,6 @@ def createODCRAlarmTopic(RegionName):
             'DisplayName': 'ODCRAlarm'
         },
         )
-        #print (response)
         return response['TopicArn']
     except ClientError as err:
         print(err)
@@ -111,10 +110,7 @@ def createODCRAlarmTopic(RegionName):
 # This method creates alarm for each reservation
 def createCWAlarm(CapacityReservationId,RegionName):
     TopicArnList = listTopic(RegionName)
-    #print (TopicArnList)
     TopicArn = createODCRAlarmTopic(RegionName)
-    #print ("TopicARN is ", TopicArn)
-    #print ("boolean value is ", TopicArn not in TopicArnList)
     if TopicArn not in TopicArnList:
         print ("Subscribe and confirm to the SNS Topic {} if not already".format(TopicArn))
     cw = boto3.client('cloudwatch', region_name=RegionName)
@@ -143,10 +139,7 @@ def createCWAlarm(CapacityReservationId,RegionName):
 # this method helps to identify platform associated with the instance/image
 def describeImage(ImageId, client):
     response = client.describe_images(ImageIds=[ImageId])
-    #print ("The output from the Image = ", response)
     Platform = ''.join([a_dict['PlatformDetails'] for a_dict in response['Images']])
-    #print (Platform)
-    #print (type(Platform))
     return Platform
 
 # This method retruns Zonal reserve instance (ZRI) if exists or return null.
@@ -160,21 +153,12 @@ def describeReserveInstances(client):
     reserveInstances = client.describe_reserved_instances(
     Filters=filterList
     )
-    #print ("Reserve Instances are ", reserveInstances['ReservedInstances'])
     if reserveInstances['ReservedInstances'] == []:
-        #print ('if')
         zriList.extend(reserveInstances['ReservedInstances'])
     else:
-        #print ("Reserve Instances in else are ", reserveInstances['ReservedInstances'])
         for zri in reserveInstances['ReservedInstances']:
-            #print ('else',zri)
-            #print ('zri[InstanceType]', zri['InstanceType'])
-            #print ('zri[AvailabilityZone]', zri['AvailabilityZone'])
-            #print ('zri[ProductDescription]', zri['ProductDescription'])
-            #print ('zri[InstanceCount]', zri['InstanceCount'])
             zaz = zri['InstanceType']+"|"+zri['AvailabilityZone']+"|"+zri['ProductDescription']+"|"+str(zri['InstanceCount'])
             zriList.append(zaz)
-    #print ("zriList is ", zriList)
     return zriList 
 
 # Global list variable to keep track of the CRI, InstanceType, AZ, Platform and count
@@ -195,7 +179,6 @@ def instanceNextToken(NextToken,client):
         NextToken = '' 
     for reservations in instances['Reservations']:
         for instance in reservations['Instances']:
-            #print ("Instance is ",instance)
             InstanceLifecycle = instance.get('InstanceLifecycle')
             CapacityReservationId = instance.get('CapacityReservationId')
             Tenancy = instance['Placement'].get('Tenancy')
@@ -231,14 +214,12 @@ def aggregateInstance(client):
     aggregateInstanceList = []
     availInsList = describeInstances(client)
     my_dict = {i:availInsList.count(i) for i in availInsList}
-    #print (my_dict)
     for key,value in my_dict.items():
         aggregateInstanceList.append(key+"|"+str(value))
     return (aggregateInstanceList)
 
 # This method  check to see if any zonal instance with the appropriate AZ and platform matches with the aggregated ODCR
 # if it finds the match it substracts zonal instance count from the aggregated ODCR and create new list
-
 def odcrReservationWithZRI(ZonalRIList,OdcrList):
     newZonalRIDict = {}
     newOdcrDict = {}
@@ -271,13 +252,11 @@ def odcrReservationWithZRI(ZonalRIList,OdcrList):
     if len(newOdcrDict) > 0:
         for key, val in newOdcrDict.items():
             newOdcrList.append(key + "|" + str(val))
-    #print(newOdcrList)
     return newOdcrList
 
 
 # odcrReservation() method creates On-demand Capacity reservations with the supplied EndDateType and EndDate 
 def odcrReservation(client,RegionName):  
-    #OdcrList=[]
     OdcrList=aggregateInstance(client)
     zonalRIList = describeReserveInstances(client)
     OdcrWithZonalList = odcrReservationWithZRI(zonalRIList,OdcrList)
@@ -285,34 +264,34 @@ def odcrReservation(client,RegionName):
         #split a record to parse InstanceType, AZ, Platform, and Count
         InstanceType, AZ, Platform, Count = ls.split('|')
         try:
-            if EndDateType == 'limited':
-                OdcrReservation = client.create_capacity_reservation(
-                    InstanceType=InstanceType,
-                    InstancePlatform=Platform,
-                    AvailabilityZone=AZ,
-                    InstanceCount=int(Count),
-                    EndDate = EndDate,
-                    EndDateType = EndDateType,
-                    DryRun=False)
-            else:
-                OdcrReservation = client.create_capacity_reservation(
-                    InstanceType=InstanceType,
-                    InstancePlatform=Platform,
-                    AvailabilityZone=AZ,
-                    InstanceCount=int(Count),
-                    EndDateType = EndDateType,
-                    DryRun=False)
-            #print (OdcrReservation)
-            # Output can be added to XLS sheet if needed for future reference.
-            CapacityReservationId = OdcrReservation['CapacityReservation']['CapacityReservationId']
-            createCWAlarm(CapacityReservationId,RegionName)
-            State =  OdcrReservation['CapacityReservation']['State']  
-            ODCRReservation.append(InstanceType)
-            ODCRReservation.append(Platform)
-            ODCRReservation.append(AZ)
-            ODCRReservation.append(Count)
-            ODCRReservation.append(CapacityReservationId)
-            ODCRReservation.append(State) 
+            if int(Count) != 0:
+                if EndDateType == 'limited':
+                    OdcrReservation = client.create_capacity_reservation(
+                        InstanceType=InstanceType,
+                        InstancePlatform=Platform,
+                        AvailabilityZone=AZ,
+                        InstanceCount=int(Count),
+                        EndDate = EndDate,
+                        EndDateType = EndDateType,
+                        DryRun=False)
+                else:
+                    OdcrReservation = client.create_capacity_reservation(
+                        InstanceType=InstanceType,
+                        InstancePlatform=Platform,
+                        AvailabilityZone=AZ,
+                        InstanceCount=int(Count),
+                        EndDateType = EndDateType,
+                        DryRun=False)
+                # Output can be added to XLS sheet if needed for future reference.
+                CapacityReservationId = OdcrReservation['CapacityReservation']['CapacityReservationId']
+                createCWAlarm(CapacityReservationId,RegionName)
+                State =  OdcrReservation['CapacityReservation']['State']  
+                ODCRReservation.append(InstanceType)
+                ODCRReservation.append(Platform)
+                ODCRReservation.append(AZ)
+                ODCRReservation.append(Count)
+                ODCRReservation.append(CapacityReservationId)
+                ODCRReservation.append(State) 
         except ClientError as err:
             # Catching an exception where platform is not support with ODCR
             #print ("Error is ",err.response['Error']['Code'])
