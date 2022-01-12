@@ -1,6 +1,6 @@
 #This script is intended to simply the creation on ODCR for the running capacity across regions with in an account. 
 # Here are some of the assumptions –
-# User must provide EndDateType as ‘limited’ and the EndDate in the datetime format as ‘09/25/2021 14:30:00’.
+# User must provide EndDateType as ‘limited’ and the EndDate in the datetime format as ‘2022-01-31 14:30:00’.
 # **Note:** EndDate is in the standard UTC time.
 # User must have permissions to EC2 APIs such as describe instances, regions and create, modify and cancel capacity reservation. 
 
@@ -9,8 +9,7 @@ import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 import sys
-#from datetime import datetime 
-import datetime
+from datetime import datetime 
 import pandas as pd
 from tqdm import tqdm
 import pytz
@@ -24,28 +23,26 @@ import pytz
 #### For setting ODCR for limited perionf, EndDateType = limited
 #### EndDate (datetime) -- The date and time at which the Capacity Reservation expires. When a Capacity Reservation expires, the reserved capacity is released and you can no longer launch instances into it. The Capacity Reservation's state changes to expired when it reaches its end date and time.
 #### You must provide an EndDate value if EndDateType is limited . Omit EndDate if EndDateType is unlimited .
-#### If the EndDateType is limited , the Capacity Reservation is cancelled within an hour from the specified time. For example, if you specify 5/31/2019, 13:30:55, the Capacity Reservation is guaranteed to end between 13:30:55 and 14:30:55 on 5/31/2019.
+#### If the EndDateType is limited , the Capacity Reservation is cancelled within an hour from the specified time. For example, if you specific 2022-01-31, 13:30:55, the Capacity Reservation is guaranteed to end between 13:30:55 and 14:30:55 on 2022-01-31.
 #### Ensure you've appropriate permission to Describe instances and reserve capacity
 #### EC2 - describe instances,regions, and create, modify and cancel capacity_reservation
 
 #### To execute the code
 ### if EndDataType is limited then registerODCR.py EndDateType EndDate. Note: EndDate is in the standard UTC time
-#### Ex: registerODCR.py 'limited' '01/11/2022 14:30:00'
+#### Ex: registerODCR.py 'limited' '2022-01-31 14:30:00'
 #### if EndDataType is unlimited then registerODCR.py EndDateType.
 #### Ex: registerODCR.py 'unlimited'
 
 # datetime object containing current date and time
-now = datetime.datetime.now().astimezone(pytz.utc)
-# mm/dd/YY H:M:S
-CurrentDate = now.strftime("%m/%d/%Y %H:%M:%S")
-print("Curent Date =", CurrentDate)
+CurrentDate = datetime.now(pytz.utc)
+print ("Current Date = ", CurrentDate)
 
 ## if EndDateType is 'unlimited, do not provide an EndDate if the EndDateType is unlimited.
 ## if EndDateType is 'limited', ensure to provide an EndDate. EndDate is in the standard UTC time
 if len(sys.argv) == 1:
     print ("Command to run code for unlimited ODCR is - registerODCR.py EndDateType. Ex: registerODCR.py 'unlimited'.")
     print ("Do not specify EndDate")
-    print ("Command to run code for limited ODCR is - registerODCR.py EndDateType EndDate. Ex: registerODCR.py 'limited' '01/11/2022 14:30:00'.")
+    print ("Command to run code for limited ODCR is - registerODCR.py EndDateType EndDate. Ex: registerODCR.py 'limited' '2022-01-31 14:30:00'.")
     sys.exit()
 elif len(sys.argv) == 2:
     if sys.argv[1] == 'unlimited':
@@ -57,21 +54,33 @@ elif len(sys.argv) == 3:
     EndDateType = sys.argv[1]
     # End Date for the On-Demand Capacity Reservation
     EndDate = sys.argv[2]
-    print ("End Date = ", EndDate)
+    print ("END DATE is ", EndDate)
+    format = '%Y-%m-%d %H:%M:%S'
+    try:
+        datetime.strptime(EndDate, format)
+    except ValueError:
+        print ("End Date format is not correct. The correct format is YYYY-MM-DD HH:MI:SS. Here is the command to run code for limited ODCR is - registerODCR.py EndDateType EndDate. Ex: registerODCR.py 'limited' '2022-01-31 14:30:00' ") 
+        sys.exit()
+
+    EndDate_obj = datetime.strptime(EndDate, '%Y-%m-%d %H:%M:%S')
+    timezone = pytz.timezone('UTC')
+    timezone_date_time_obj = timezone.localize(EndDate_obj)
+    print ("End Date = ", timezone_date_time_obj)    
     # Exit program if EndDateType is not set as 'limited'
     if EndDateType != 'limited':
         print ("Command to run code for unlimited ODCR is - registerODCR.py EndDateType. Ex: registerODCR.py 'unlimited'.")
         print ("Do not specify EndDate")
         sys.exit()
+
     #Exit program if End Data has already passed Current Date
-    if CurrentDate > EndDate:
+    if CurrentDate > timezone_date_time_obj:
             print ("The specified EndDate has already passed. Specify an EndDate in the future.")
             print ("Note: EndDate is in the standard UTC time")
             sys.exit()
 else:
     print ("Command to run code for unlimited ODCR is - registerODCR.py EndDateType. Ex: registerODCR.py 'unlimited'.")
     print ("Do not specify EndDate")
-    print ("Command to run code for limited ODCR is - registerODCR.py EndDateType EndDate. Ex: registerODCR.py 'limited' '01/11/2022 14:30:00'.")
+    print ("Command to run code for limited ODCR is - registerODCR.py EndDateType EndDate. Ex: registerODCR.py 'limited' '2022-01-31 14:30:00'.")
     sys.exit()
 
 
@@ -296,7 +305,7 @@ def odcrReservation(client,RegionName):
             # Catching an exception where platform is not support with ODCR
             #print ("Error is ",err.response['Error']['Code'])
             if err.response['Error']['Code'] == 'InvalidParameterValue': 
-                print("{} platform is not support under ODCR".format(Platform))
+                print("{} platform is not supported under ODCR".format(Platform))
             elif err.response['Error']['Code'] == 'MissingParameter': 
                 print("Platform information is not available. It might be private or inactive or not available anymore. Please check it out")
             else:
@@ -306,7 +315,7 @@ def odcrReservation(client,RegionName):
 # Creating XLS sheet of the Capacity reservation detail. The file name is "ODCR.xlsx"
 def createXls(list):
     df = pd.DataFrame()
-    time = now.strftime("%H%M%S")
+    time = CurrentDate.strftime("%H%M%S")
     filename = "ODCR"+"-"+time+".xlsx"
     print ("The results are available in  ./" + filename + ".")
     df['InstanceType'] = list[0::6]
