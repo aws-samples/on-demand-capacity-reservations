@@ -23,7 +23,7 @@ import pytz
 #### For setting ODCR for limited perionf, EndDateType = limited
 #### EndDate (datetime) -- The date and time at which the Capacity Reservation expires. When a Capacity Reservation expires, the reserved capacity is released and you can no longer launch instances into it. The Capacity Reservation's state changes to expired when it reaches its end date and time.
 #### You must provide an EndDate value if EndDateType is limited . Omit EndDate if EndDateType is unlimited .
-#### If the EndDateType is limited , the Capacity Reservation is cancelled within an hour from the specified time. For example, if you specific 2022-01-31, 13:30:55, the Capacity Reservation is guaranteed to end between 13:30:55 and 14:30:55 on 2022-01-31.
+#### If the EndDateType is limited , the Capacity Reservation is cancelled within an hour from the specified time. For example, if you specify 5/31/2019, 13:30:55, the Capacity Reservation is guaranteed to end between 13:30:55 and 14:30:55 on 5/31/2019.
 #### Ensure you've appropriate permission to Describe instances and reserve capacity
 #### EC2 - describe instances,regions, and create, modify and cancel capacity_reservation
 
@@ -54,7 +54,6 @@ elif len(sys.argv) == 3:
     EndDateType = sys.argv[1]
     # End Date for the On-Demand Capacity Reservation
     EndDate = sys.argv[2]
-    print ("END DATE is ", EndDate)
     format = '%Y-%m-%d %H:%M:%S'
     try:
         datetime.strptime(EndDate, format)
