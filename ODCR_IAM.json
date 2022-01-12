@@ -2,29 +2,35 @@
     "Version": "2012-10-17",
     "Statement": [
         {
+            "Sid": "VisualEditor0",
             "Effect": "Allow",
             "Action": [
-                "ec2:DescribeInstances",
-                "ec2:DescribeInstanceStatus",
-                "ec2:DescribeRegions",
                 "ec2:DescribeCapacityReservations",
-                "ec2:CreateCapacityReservation",
-                "ec2:ModifyCapacityReservation",
-                "ec2:CancelCapacityReservation",
+                "ec2:DescribeInstances",
+                "sns:DeleteTopic",
+                "cloudwatch:DeleteAlarms",
+                "ec2:DescribeRegions",
+                "sns:CreateTopic",
+                "sns:ListTopics",
+                "sns:SetTopicAttributes",
+                "ec2:DescribeImages",
                 "cloudwatch:PutMetricAlarm",
-                "cloudwatch:DeleteAlarms"
+                "ec2:ModifyCapacityReservation",
+                "ec2:CreateCapacityReservation",
+                "ec2:CancelCapacityReservation",
+                "ec2:DescribeReservedInstances",
+                "ec2:DescribeInstanceStatus"
             ],
             "Resource": "*"
         },
         {
+            "Sid": "VisualEditor1",
             "Effect": "Allow",
-            "Action": ["sns:CreateTopic", "sns:ListTopics", "sns:SetTopicAttributes", "sns:DeleteTopic"],
-            "Resource": "*"
-        },
-        {
-              "Effect": "Allow",
-              "Action": ["sns:Publish", "sns:Subscribe"],
-              "Resource": "arn:aws:sns:*:*:ODCRAlarmNotificationTopic"
+            "Action": [
+                "sns:Publish",
+                "sns:Subscribe"
+            ],
+            "Resource": "arn:aws:sns:*:*:ODCRAlarmNotificationTopic"
         }
     ]
 }
