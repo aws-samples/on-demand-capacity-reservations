@@ -5,6 +5,7 @@ from datetime import datetime
 from tqdm import tqdm
 from botocore.config import Config
 from botocore.exceptions import ClientError
+import pytz
 
 ## Usage Notes: 
 ### variables need from the users:
@@ -30,11 +31,9 @@ from botocore.exceptions import ClientError
 #### Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited' '09/25/2021 14:30:00'
 
 # datetime object containing current date and time
-now = datetime.now()
-
-# mm/dd/YY H:M:S
-CurrentDate = now.strftime("%m/%d/%Y %H:%M:%S")
-print("Curent Date =", CurrentDate)
+# datetime object containing current date and time
+CurrentDate = datetime.now(pytz.utc)
+print ("Current Date = ", CurrentDate)
 
 # verifying the argument provided the user before excuting modify CR api
 if len(sys.argv) == 1 or len(sys.argv) < 4:
@@ -44,7 +43,7 @@ if len(sys.argv) == 1 or len(sys.argv) < 4:
     print ("Note: CapacityReservationId starts with 'cr-'. EndDate is in the standard UTC time")
     sys.exit()
 else:
-    print ("cap is ", sys.argv[1])
+    print ("capacity Reservation Id is ", sys.argv[1])
     CapacityReservationId = sys.argv[1]
     if CapacityReservationId.split('-')[0] !='cr':
         print ("Command to run code to modify to unlimited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'unlimited'" )
@@ -74,14 +73,30 @@ else:
         sys.exit()
     elif len(sys.argv) == 5 and EndDateType == 'limited':
         EndDate= sys.argv[4]
+        format = '%Y-%m-%d %H:%M:%S'
+        try:
+            datetime.strptime(EndDate, format)
+        except ValueError:
+            print ("End Date format is not correct. The correct format is YYYY-MM-DD HH:MI:SS. Here is the command to run code for limited ODCR is - registerODCR.py EndDateType EndDate. Ex: registerODCR.py 'limited' '2022-01-31 14:30:00' ") 
+            sys.exit()
+
+        EndDate_obj = datetime.strptime(EndDate, '%Y-%m-%d %H:%M:%S')
+        timezone = pytz.timezone('UTC')
+        timezone_date_time_obj = timezone.localize(EndDate_obj)
+        print ("End Date = ", timezone_date_time_obj)    
+        # Exit program if EndDateType is not set as 'limited'
+        if EndDateType != 'limited':
+            print ("Command to run code for unlimited ODCR is - registerODCR.py EndDateType. Ex: registerODCR.py 'unlimited'.")
+            print ("Do not specify EndDate")
+            sys.exit()
+
         #Exit program if End Data has already passed Current Date
-        if CurrentDate > EndDate:
+        if CurrentDate > timezone_date_time_obj:
             print ("The specified EndDate has already passed. Specify an EndDate in the future.")
             print ("Note: EndDate is in the standard UTC time")
             sys.exit()
     else:
         pass
-
 
 #Find capacity reservation region
 def describeCapacityReservationRegion():
