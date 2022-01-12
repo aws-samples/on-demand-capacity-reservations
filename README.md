@@ -14,7 +14,7 @@ Save the requirements.txt file in the same directory with other python scripts. 
 * If user provides EndDateType as 'unlimited', then do not provide EndDate. 
     *Note: Do not provide EndDate.*
 
-* if user provides EndDateType as ‘limited', then provide EndDate. The EndDate forrmat is 09/25/2021 14:30:00.
+* if user provides EndDateType as ‘limited', then provide EndDate. The EndDate forrmat is '2022-01-31 14:30:00'.
     *Note: EndDate is in the standard UTC time.*
 
 * User must have permissions to EC2 APIs such as describe instances, regions and create, describe, modify and cancel capacity reservation. You can download ODCR_IAM.json.
@@ -64,7 +64,7 @@ registerODCR.py script does 3 things –
 
     **registerODCR.py' EndDateType EndDate**
 
-    **registerODCR.py' 'limited' '10/31/2021 14:30:00'**
+    **registerODCR.py' 'limited' '2022-01-31 14:30:00'**
 
 
 **To modify ODCRs**
@@ -80,7 +80,7 @@ If need to modify ODCR to change the instance counts for the existing capacity r
     
     For setting ODCR for limited period, set EndDateType = limited EndDate (datetime), the date and time at which the Capacity Reservation expires. When a Capacity Reservation expires, the reserved capacity is released and you can no longer launch instances into it. The Capacity Reservation's state changes to expired when it reaches its end date and time. You must provide an EndDate value if EndDateType is limited. 
     
-    Omit EndDate if EndDateType is unlimited . If the EndDateType is limited , the Capacity Reservation is cancelled within an hour from the specified time. For example, if you specify 5/31/2019, 13:30:55, the Capacity Reservation is guaranteed to end between 13:30:55 and 14:30:55 on 5/31/2019. Ensure you've appropriate permission to Describe instances and reserve and modify capacity
+    Omit EndDate if EndDateType is unlimited . If the EndDateType is limited , the Capacity Reservation is cancelled within an hour from the specified time. For example, if you specify '2022-01-31 14:30:00', the Capacity Reservation is guaranteed to end between 13:30:55 and 14:30:55 on 5/31/2019. Ensure you've appropriate permission to Describe instances and reserve and modify capacity
 
 **To run the script to modify reservation**
 
@@ -96,7 +96,7 @@ If need to modify ODCR to change the instance counts for the existing capacity r
     
     **modifyODCR.py CapacityReservationId InstanceCount EndDateType EndDate**
 
-    **modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited' '09/25/2021 14:30:00'**
+    **modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited' '2022-01-31 14:30:00'**
 
 **To cancel ODCRs** 
 
