@@ -28,7 +28,7 @@ import pytz
 
 ### You must provide four parameters while executing the modifyODCR.py file
 #### modifyODCR.py CapacityReservationId InstanceCount EndDateType EndDate. Note: EndDate is in the standard UTC time
-#### Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited' '09/25/2021 14:30:00'
+#### Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited' '2022-01-31 14:30:00'
 
 # datetime object containing current date and time
 # datetime object containing current date and time
@@ -39,7 +39,7 @@ print ("Current Date = ", CurrentDate)
 if len(sys.argv) == 1 or len(sys.argv) < 4:
     print ("Command to run code to modify to unlimited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'unlimited'" )
     print ("Note: CapacityReservationId starts with 'cr-'." )
-    print ("Command to run code to modify to limited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType EndDate. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited' '09/25/2021 14:30:00'" )
+    print ("Command to run code to modify to limited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType EndDate. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited' '2022-01-31 14:30:00'" )
     print ("Note: CapacityReservationId starts with 'cr-'. EndDate is in the standard UTC time")
     sys.exit()
 else:
@@ -59,12 +59,12 @@ else:
     except ValueError as err:
         print("Unable to parse InstanceCount as an integer")
         print ("Command to run code to modify to unlimited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'unlimited'" )
-        print ("Command to run code to modify limited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType EndDate. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited' '09/25/2021 14:30:00'" )
+        print ("Command to run code to modify limited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType EndDate. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited' '2022-01-31 14:30:00'" )
         print ("Note: EndDate is in the standard UTC time")
         sys.exit()
     EndDateType =sys.argv[3]
     if len(sys.argv) == 4 and EndDateType == 'limited':
-        print ("Command to run code to modify limited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType EndDate. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited' '09/25/2021 14:30:00'" )
+        print ("Command to run code to modify limited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType EndDate. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited' '2022-01-31 14:30:00'" )
         print ("Note: EndDate is in the standard UTC time")
         sys.exit()
     elif len(sys.argv) == 5 and EndDateType == 'unlimited':
@@ -77,7 +77,7 @@ else:
         try:
             datetime.strptime(EndDate, format)
         except ValueError:
-            print ("End Date format is not correct. The correct format is YYYY-MM-DD HH:MI:SS. Here is the command to run code for limited ODCR is - registerODCR.py EndDateType EndDate. Ex: registerODCR.py 'limited' '2022-01-31 14:30:00' ") 
+            print ("End Date format is not correct. The correct format is YYYY-MM-DD HH:MI:SS. Here is the command to run code for limited ODCR is - modifyODCR.py EndDateType EndDate. Ex: modifyODCR.py 'limited' '2022-01-31 14:30:00' ") 
             sys.exit()
 
         EndDate_obj = datetime.strptime(EndDate, '%Y-%m-%d %H:%M:%S')
@@ -86,7 +86,7 @@ else:
         print ("End Date = ", timezone_date_time_obj)    
         # Exit program if EndDateType is not set as 'limited'
         if EndDateType != 'limited':
-            print ("Command to run code for unlimited ODCR is - registerODCR.py EndDateType. Ex: registerODCR.py 'unlimited'.")
+            print ("Command to run code for unlimited ODCR is - modifyODCR.py EndDateType. Ex: modifyODCR.py 'unlimited'.")
             print ("Do not specify EndDate")
             sys.exit()
 
@@ -124,17 +124,15 @@ def describeCapacityReservationRegion():
             if response['CapacityReservations'][0]['State'] != 'active':
                 print ("The state of the Capacity reservation/{} is {}. To cancel Capacity Reservation, please ensure that the state of the Capacity Reservation is active".format(CapacityReservationId, response['CapacityReservations'][0]['State']))
                 sys.exit()
-            #region = (response['CapacityReservations'][0]['CapacityReservationArn']).split(':')[3]
         except ClientError as err:
             if (err.response['Error']['Code'] == 'InvalidCapacityReservationId.NotFound'):
                 pass
             else:
                 print ("Command to run code to modify to unlimited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'unlimited'" )
                 print ("Ensure the instance count is an integer value")
-                print ("Command to run code to modify limited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType EndDate. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited' '09/25/2021 14:30:00'" )
+                print ("Command to run code to modify limited ODCR is - modifyODCR.py CapacityReservationId InstanceCount EndDateType EndDate. Ex: modifyODCR.py 'cr-05e6a94b99915xxxx' '1' 'limited' '2022-01-31 14:30:00'" )
                 print ("Note: EndDate is in the standard UTC time")
                 sys.exit()
-                #print ("The Provided Capacity Reservation does not belong to ",RegionName)
     region = (response['CapacityReservations'][0]['CapacityReservationArn']).split(':')[3]
     return region 
 
