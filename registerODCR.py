@@ -194,7 +194,7 @@ def instanceNextToken(NextToken,client):
             if (instance['State']['Name'] == 'running' and InstanceLifecycle is None and CapacityReservationId is None and CapacityReservationSpecification != 0 and Tenancy == 'default' ):
                 InstanceId = instance['InstanceId']
                 ImageId =instance['ImageId'] 
-                Platform = describeImage(ImageId, client)
+                Platform = describePlatform(InstanceId, client)
                 if Platform is None or Platform =='':
                         print ("No Platform is set for the ImageId {}, instanceId {}".format(ImageId,InstanceId))
                 InstanceType = instance['InstanceType']
