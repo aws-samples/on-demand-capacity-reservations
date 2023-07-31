@@ -145,9 +145,9 @@ def createCWAlarm(CapacityReservationId,RegionName):
     return response
 
 # this method helps to identify platform associated with the instance/image
-def describeImage(ImageId, client):
-    response = client.describe_images(ImageIds=[ImageId])
-    Platform = ''.join([a_dict['PlatformDetails'] for a_dict in response['Images']])
+def describePlatform(InstanceId, client):
+    response = client.describe_instances(InstanceIds=[InstanceId])
+    Platform = ''.join([a_dict['PlatformDetails'] for a_dict in response['Reservations'][0]['Instances']])
     return Platform
 
 # This method retruns Zonal reserve instance (ZRI) if exists or return null.
