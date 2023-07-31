@@ -145,9 +145,9 @@ def createCWAlarm(CapacityReservationId,RegionName):
     return response
 
 # this method helps to identify platform associated with the instance/image
-def describeImage(ImageId, client):
-    response = client.describe_images(ImageIds=[ImageId])
-    Platform = ''.join([a_dict['PlatformDetails'] for a_dict in response['Images']])
+def describePlatform(InstanceId, client):
+    response = client.describe_instances(InstanceIds=[InstanceId])
+    Platform = ''.join([a_dict['PlatformDetails'] for a_dict in response['Reservations'][0]['Instances']])
     return Platform
 
 # This method retruns Zonal reserve instance (ZRI) if exists or return null.
@@ -194,7 +194,7 @@ def instanceNextToken(NextToken,client):
             if (instance['State']['Name'] == 'running' and InstanceLifecycle is None and CapacityReservationId is None and CapacityReservationSpecification != 0 and Tenancy == 'default' ):
                 InstanceId = instance['InstanceId']
                 ImageId =instance['ImageId'] 
-                Platform = describeImage(ImageId, client)
+                Platform = describePlatform(InstanceId, client)
                 if Platform is None or Platform =='':
                         print ("No Platform is set for the ImageId {}, instanceId {}".format(ImageId,InstanceId))
                 InstanceType = instance['InstanceType']
