@@ -73,9 +73,9 @@ elif len(sys.argv) == 3:
 
     #Exit program if End Data has already passed Current Date
     if CurrentDate > timezone_date_time_obj:
-            print ("The specified EndDate has already passed. Specify an EndDate in the future.")
-            print ("Note: EndDate is in the standard UTC time")
-            sys.exit()
+        print ("The specified EndDate has already passed. Specify an EndDate in the future.")
+        print ("Note: EndDate is in the standard UTC time")
+        sys.exit()
 else:
     print ("Command to run code for unlimited ODCR is - registerODCR.py EndDateType. Ex: registerODCR.py 'unlimited'.")
     print ("Do not specify EndDate")
