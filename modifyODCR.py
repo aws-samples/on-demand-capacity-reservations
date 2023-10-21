@@ -122,7 +122,7 @@ def describeCapacityReservationRegion():
             ],
             )
             if response['CapacityReservations'][0]['State'] != 'active':
-                print ("The state of the Capacity reservation/{} is {}. To cancel Capacity Reservation, please ensure that the state of the Capacity Reservation is active".format(CapacityReservationId, response['CapacityReservations'][0]['State']))
+                print ("The state of the Capacity reservation/{} is {}. To modify Capacity Reservation, please ensure that the state of the Capacity Reservation is active".format(CapacityReservationId, response['CapacityReservations'][0]['State']))
                 sys.exit()
         except ClientError as err:
             if (err.response['Error']['Code'] == 'InvalidCapacityReservationId.NotFound'):
